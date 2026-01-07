@@ -1,5 +1,19 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Mac
 .DS_Store
+
+# VS Code
 .vscode/
+
+# Streamlit / cache
+.streamlit/
+.cache/
+
+# Jupyter
+.ipynb_checkpoints/
