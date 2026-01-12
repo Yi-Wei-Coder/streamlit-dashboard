@@ -309,3 +309,66 @@ with tabs[2]:
     )
 
 st.caption("Mock data only. Next step: wire real data sources and normalize schema.")
+from utils.token_news_mock import get_mock_governance, get_mock_news
+from utils.formatting import badge
+
+st.markdown("---")
+st.header("🗳 Governance & 📰 News")
+
+# ======================
+# Governance
+# ======================
+st.subheader("Governance")
+
+gov_df = get_mock_governance(token)
+
+for _, row in gov_df.iterrows():
+    cols = st.columns([4, 2, 2, 2, 2])
+
+    with cols[0]:
+        st.markdown(f"**{row['title']}**")
+
+    with cols[1]:
+        st.write(row["type"])
+
+    with cols[2]:
+        color = "red" if row["status"] == "Active" else "green"
+        st.markdown(badge(row["status"], color), unsafe_allow_html=True)
+
+    with cols[3]:
+        st.write(row["impact"])
+
+    with cols[4]:
+        if row["status"] == "Active" and row["impact"] == "High":
+            st.markdown(
+                badge("⚠ High Impact Active", "red", "May significantly affect token economics"),
+                unsafe_allow_html=True,
+            )
+
+# ======================
+# News
+# ======================
+st.subheader("News")
+
+news_df = get_mock_news(token)
+
+for _, row in news_df.iterrows():
+    cols = st.columns([1, 6, 2, 2])
+
+    with cols[0]:
+        st.write(row["date"].strftime("%Y-%m-%d"))
+
+    with cols[1]:
+        st.markdown(f"**{row['headline']}**")
+
+    with cols[2]:
+        st.write(row["source"])
+
+    with cols[3]:
+        if row["category"] in ["Security", "Regulation"]:
+            st.markdown(
+                badge(row["category"], "red", "Potential downside risk"),
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(badge(row["category"], "gray"), unsafe_allow_html=True)
