@@ -4,6 +4,7 @@ import plotly.express as px
 
 from utils.tokens_mock import generate_token_dataset, ma_30
 from utils.formatting import colored_delta, pct_delta_str, badge
+from utils.token_news_mock import get_mock_governance, get_mock_news
 
 st.set_page_config(page_title="Tokens", layout="wide")
 
@@ -33,21 +34,16 @@ seed = st.sidebar.number_input("Mock seed", min_value=1, max_value=9999, value=4
 
 summary, details = generate_token_dataset(seed=seed)
 
-# Session state for selected token
 if "selected_token" not in st.session_state:
     st.session_state.selected_token = summary["Token"].iloc[0]
 
-# Build summary table view
 summary_view = summary.copy()
-
-# Format % columns for display
 for col in ["Price (30D %)", "FDV (30D %)", "Volume 24H (30D %)"]:
     summary_view[col] = summary_view[col].apply(pct_delta_str)
 
-# Add Pick checkbox column reflecting the current selection (single true)
+# Single-true checkbox column
 summary_view.insert(0, "Pick", summary_view["Token"].eq(st.session_state.selected_token))
 
-# Keep only display columns in editor
 editor_cols = ["Pick", "Token", "Price (30D %)", "FDV (30D %)", "Volume 24H (30D %)", "Next Unlock (>2%)"]
 summary_editor_df = summary_view[editor_cols].copy()
 
@@ -65,19 +61,15 @@ edited = st.sidebar.data_editor(
 
 picked = edited[edited["Pick"] == True]["Token"].tolist()
 
-# --- Enforce SINGLE selection (auto-cancel previous) ---
+# Enforce SINGLE selection
 if len(picked) == 0:
-    # If user unchecks everything, keep previous selection
     picked_token = st.session_state.selected_token
 elif len(picked) == 1:
     picked_token = picked[0]
 else:
-    # If user checks multiple, assume they intended to switch away from current token
     candidates = [t for t in picked if t != st.session_state.selected_token]
     picked_token = candidates[0] if len(candidates) > 0 else picked[0]
 
-# If token changed, update and rerun (this rerun will also regenerate the Pick column
-# so only one checkbox stays checked visually)
 if picked_token != st.session_state.selected_token:
     st.session_state.selected_token = picked_token
     st.rerun()
@@ -109,25 +101,19 @@ pos = d["position"]
 h1, h2, h3, h4, h5 = st.columns([2.2, 1.4, 1.2, 1.6, 1.6])
 with h1:
     st.subheader(token)
-
 with h2:
     st.metric("PnL (abs)", f"${pos['pnl_abs']:,.0f}")
-
 with h3:
     st.metric("PnL (%)", f"{pos['pnl_pct']:+.2f}%")
-
 with h4:
     st.metric("Cost basis", f"${pos['cost_basis']:,.4f}")
-
 with h5:
     st.markdown("**Alerts**")
     if has_unlock_alert:
         badge("Unlock >2%", color="red", tooltip=unlock_tip)
     else:
         badge("Unlock OK", color="green", tooltip=unlock_tip)
-
-    st.write("")  # spacing
-
+    st.write("")
     if has_share_alert:
         badge("Share Drop", color="red", tooltip=share_tip)
     else:
@@ -136,9 +122,9 @@ with h5:
 st.markdown("---")
 
 # =======================
-# Tabs
+# Tabs (add Governance & News)
 # =======================
-tabs = st.tabs(["Overview", "Unlocks", "Fundamentals"])
+tabs = st.tabs(["Overview", "Unlocks", "Fundamentals", "Governance & News"])
 
 # =======================
 # Overview
@@ -154,45 +140,25 @@ with tabs[0]:
 
     with c1:
         section_metric("Price", f"${price_last:,.4f}", price_chg)
-        st.plotly_chart(
-            px.line(d["price"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_price"
-        )
+        st.plotly_chart(px.line(d["price"], x="date", y="value"), use_container_width=True, key=f"{token}_price")
 
     with c2:
         section_metric("FDV", f"${fdv_last/1e9:,.2f}B", fdv_chg)
-        st.plotly_chart(
-            px.line(d["fdv"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_fdv"
-        )
+        st.plotly_chart(px.line(d["fdv"], x="date", y="value"), use_container_width=True, key=f"{token}_fdv")
 
     with c3:
         section_metric("Trading Volume (24H)", f"${vol_last/1e6:,.1f}M", vol_chg)
-        st.plotly_chart(
-            px.area(d["volume"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_volume"
-        )
+        st.plotly_chart(px.area(d["volume"], x="date", y="value"), use_container_width=True, key=f"{token}_volume")
 
     c4, c5, c6 = st.columns(3)
 
     with c4:
         section_metric("Circulating Supply", f"{circ_last/1e6:,.1f}M", circ_chg)
-        st.plotly_chart(
-            px.line(d["circ"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_circ"
-        )
+        st.plotly_chart(px.line(d["circ"], x="date", y="value"), use_container_width=True, key=f"{token}_circ")
 
     with c5:
         section_metric("Token Burning", f"{burn_last:,.0f}", burn_chg)
-        st.plotly_chart(
-            px.line(d["burn"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_burn"
-        )
+        st.plotly_chart(px.line(d["burn"], x="date", y="value"), use_container_width=True, key=f"{token}_burn")
 
     with c6:
         st.markdown("**Unlock Alert (12M)**")
@@ -216,12 +182,7 @@ with tabs[1]:
         badge("No unlock alert", color="green", tooltip=unlock_tip)
 
     st.dataframe(unlock_df2, use_container_width=True, hide_index=True)
-
-    st.plotly_chart(
-        px.bar(unlock_df2, x="date", y="unlock_pct_of_circ"),
-        use_container_width=True,
-        key=f"{token}_unlock_bar"
-    )
+    st.plotly_chart(px.bar(unlock_df2, x="date", y="unlock_pct_of_circ"), use_container_width=True, key=f"{token}_unlock_bar")
 
 # =======================
 # Fundamentals
@@ -248,52 +209,28 @@ with tabs[2]:
     k1, k2, k3 = st.columns(3)
     with k1:
         section_metric("Revenues / Fees", f"${fees_last:,.0f}/day", fees_chg)
-        st.plotly_chart(
-            px.line(d["fund_fees"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_fees"
-        )
+        st.plotly_chart(px.line(d["fund_fees"], x="date", y="value"), use_container_width=True, key=f"{token}_fees")
 
     with k2:
         section_metric("Annualized Fees", f"${ann_fees/1e6:,.2f}M", fees_chg)
-        st.plotly_chart(
-            px.line(d["fund_fees"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_ann_fees"
-        )
+        st.plotly_chart(px.line(d["fund_fees"], x="date", y="value"), use_container_width=True, key=f"{token}_ann_fees")
 
     with k3:
         section_metric("TVL (vs MA30)", f"${tvl_last/1e9:,.2f}B", tvl_vs_ma)
-        st.plotly_chart(
-            px.line(tvl_df, x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_tvl"
-        )
+        st.plotly_chart(px.line(tvl_df, x="date", y="value"), use_container_width=True, key=f"{token}_tvl")
 
     k4, k5, k6 = st.columns(3)
     with k4:
         section_metric("Platform Trading Volume (vs MA30)", f"${plat_last/1e9:,.2f}B", plat_vs_ma)
-        st.plotly_chart(
-            px.line(plat_df, x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_platform_vol"
-        )
+        st.plotly_chart(px.line(plat_df, x="date", y="value"), use_container_width=True, key=f"{token}_platform_vol")
 
     with k5:
         section_metric("MAU", f"{mau_last:,.0f}", mau_chg)
-        st.plotly_chart(
-            px.line(d["fund_mau"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_mau"
-        )
+        st.plotly_chart(px.line(d["fund_mau"], x="date", y="value"), use_container_width=True, key=f"{token}_mau")
 
     with k6:
         section_metric("DAU", f"{dau_last:,.0f}", dau_chg)
-        st.plotly_chart(
-            px.line(d["fund_dau"], x="date", y="value"),
-            use_container_width=True,
-            key=f"{token}_dau"
-        )
+        st.plotly_chart(px.line(d["fund_dau"], x="date", y="value"), use_container_width=True, key=f"{token}_dau")
 
     st.markdown("### Market Share (mock)")
     if has_share_alert:
@@ -302,73 +239,69 @@ with tabs[2]:
         badge("Market share stable", color="green", tooltip=share_tip)
 
     st.markdown(f"Latest: **{share_last*100:.2f}%**  \n30D change: {colored_delta(share_chg)}")
-    st.plotly_chart(
-        px.line(d["fund_share"], x="date", y="value"),
-        use_container_width=True,
-        key=f"{token}_market_share"
-    )
+    st.plotly_chart(px.line(d["fund_share"], x="date", y="value"), use_container_width=True, key=f"{token}_market_share")
 
-st.caption("Mock data only. Next step: wire real data sources and normalize schema.")
-from utils.token_news_mock import get_mock_governance, get_mock_news
-from utils.formatting import badge
+# =======================
+# Governance & News (new tab)
+# =======================
+with tabs[3]:
+    st.subheader("Governance (mock)")
+    gov_df = get_mock_governance(token).copy()
 
-st.markdown("---")
-st.header("🗳 Governance & 📰 News")
+    # Ensure datetime formatting
+    if "start" in gov_df.columns:
+        gov_df["start"] = pd.to_datetime(gov_df["start"])
+    if "end" in gov_df.columns:
+        gov_df["end"] = pd.to_datetime(gov_df["end"])
 
-# ======================
-# Governance
-# ======================
-st.subheader("Governance")
+    # Highlight logic via badges
+    for _, row in gov_df.iterrows():
+        cols = st.columns([5, 2, 2, 2, 2])
+        with cols[0]:
+            st.markdown(f"**{row.get('title','')}**")
+        with cols[1]:
+            st.write(row.get("type", "-"))
+        with cols[2]:
+            status = row.get("status", "-")
+            impact = row.get("impact", "Low")
+            if status == "Active" and impact == "High":
+                badge("Active", color="red", tooltip="Active + High impact (mock)")
+            elif status == "Active":
+                badge("Active", color="blue", tooltip="Active (mock)")
+            elif status == "Passed":
+                badge("Passed", color="green", tooltip="Passed (mock)")
+            else:
+                badge(str(status), color="gray", tooltip="Mock")
+        with cols[3]:
+            st.write(impact)
+        with cols[4]:
+            s = row.get("start", None)
+            e = row.get("end", None)
+            if pd.notna(s) and pd.notna(e):
+                st.write(f"{s.date()} → {e.date()}")
+            else:
+                st.write("-")
 
-gov_df = get_mock_governance(token)
+    st.markdown("---")
+    st.subheader("News (mock)")
+    news_df = get_mock_news(token).copy()
+    if "date" in news_df.columns:
+        news_df["date"] = pd.to_datetime(news_df["date"])
 
-for _, row in gov_df.iterrows():
-    cols = st.columns([4, 2, 2, 2, 2])
+    # Simple feed with badges
+    for _, row in news_df.sort_values("date", ascending=False).iterrows():
+        c1, c2, c3, c4 = st.columns([1.2, 6, 2, 2])
+        with c1:
+            st.write(row["date"].date().isoformat())
+        with c2:
+            st.markdown(f"**{row.get('headline','')}**")
+        with c3:
+            st.write(row.get("source", "-"))
+        with c4:
+            cat = row.get("category", "Other")
+            if cat in ["Security", "Regulation"]:
+                badge(cat, color="red", tooltip="Potential downside risk (mock)")
+            else:
+                badge(cat, color="gray", tooltip="Mock")
 
-    with cols[0]:
-        st.markdown(f"**{row['title']}**")
-
-    with cols[1]:
-        st.write(row["type"])
-
-    with cols[2]:
-        color = "red" if row["status"] == "Active" else "green"
-        st.markdown(badge(row["status"], color), unsafe_allow_html=True)
-
-    with cols[3]:
-        st.write(row["impact"])
-
-    with cols[4]:
-        if row["status"] == "Active" and row["impact"] == "High":
-            st.markdown(
-                badge("⚠ High Impact Active", "red", "May significantly affect token economics"),
-                unsafe_allow_html=True,
-            )
-
-# ======================
-# News
-# ======================
-st.subheader("News")
-
-news_df = get_mock_news(token)
-
-for _, row in news_df.iterrows():
-    cols = st.columns([1, 6, 2, 2])
-
-    with cols[0]:
-        st.write(row["date"].strftime("%Y-%m-%d"))
-
-    with cols[1]:
-        st.markdown(f"**{row['headline']}**")
-
-    with cols[2]:
-        st.write(row["source"])
-
-    with cols[3]:
-        if row["category"] in ["Security", "Regulation"]:
-            st.markdown(
-                badge(row["category"], "red", "Potential downside risk"),
-                unsafe_allow_html=True,
-            )
-        else:
-            st.markdown(badge(row["category"], "gray"), unsafe_allow_html=True)
+st.caption("Mock data only. Next step: wire real governance/news sources (Snapshot, Tally, RSS, CryptoPanic).")
