@@ -27,54 +27,20 @@ def section_metric(label: str, value_str: str, pct: float):
     st.markdown(f"**{label}**  \n{value_str}  \n{colored_delta(pct)}")
 
 # =======================
-# Sidebar – clickable summary table (single-select)
+# Token selector (simple)
 # =======================
-st.sidebar.header("Tokens Summary")
-seed = st.sidebar.number_input("Mock seed", min_value=1, max_value=9999, value=42, step=1)
-
-summary, details = generate_token_dataset(seed=seed)
+summary, details = generate_token_dataset(seed=42)
 
 if "selected_token" not in st.session_state:
     st.session_state.selected_token = summary["Token"].iloc[0]
 
-summary_view = summary.copy()
-for col in ["Price (30D %)", "FDV (30D %)", "Volume 24H (30D %)"]:
-    summary_view[col] = summary_view[col].apply(pct_delta_str)
-
-# Single-true checkbox column
-summary_view.insert(0, "Pick", summary_view["Token"].eq(st.session_state.selected_token))
-
-editor_cols = ["Pick", "Token", "Price (30D %)", "FDV (30D %)", "Volume 24H (30D %)", "Next Unlock (>2%)"]
-summary_editor_df = summary_view[editor_cols].copy()
-
-edited = st.sidebar.data_editor(
-    summary_editor_df,
-    use_container_width=True,
-    hide_index=True,
-    height=380,
-    key="token_summary_editor",
-    column_config={
-        "Pick": st.column_config.CheckboxColumn("Pick", help="Select exactly one token"),
-    },
-    disabled=["Token", "Price (30D %)", "FDV (30D %)", "Volume 24H (30D %)", "Next Unlock (>2%)"],
+token = st.selectbox(
+    "Select token",
+    summary["Token"].tolist(),
+    index=summary["Token"].tolist().index(st.session_state.selected_token),
 )
 
-picked = edited[edited["Pick"] == True]["Token"].tolist()
-
-# Enforce SINGLE selection
-if len(picked) == 0:
-    picked_token = st.session_state.selected_token
-elif len(picked) == 1:
-    picked_token = picked[0]
-else:
-    candidates = [t for t in picked if t != st.session_state.selected_token]
-    picked_token = candidates[0] if len(candidates) > 0 else picked[0]
-
-if picked_token != st.session_state.selected_token:
-    st.session_state.selected_token = picked_token
-    st.rerun()
-
-token = st.session_state.selected_token
+st.session_state.selected_token = token
 d = details[token]
 
 # =======================
