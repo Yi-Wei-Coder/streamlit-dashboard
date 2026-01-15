@@ -1,0 +1,17 @@
+DEFILLAMA_SLUG = {
+    "AAVE": "aave",
+    "LDO": "lido",
+    "PENDLE": "pendle",
+    "SNX": "synthetix",
+    "DYDX": "dydx",
+    "COMP": "compound",
+    "ENA": "ethena",
+    "SKY": "makerdao",
+    "HYPE": "hyperliquid",
+    "POL": "polygon",
+    "TON": None,
+    "CANTON": None,
+    "PUMP": None,
+    "SQD": None,
+    "ARC": None,
+}
